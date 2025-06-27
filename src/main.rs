@@ -86,19 +86,19 @@ const TETROMINO_SHAPES: [(TetrominoKind, [(Rotation, [IVec2; 4]); 4]); 7] = [
     (
         TetrominoKind::J,
         [
-            (Rotation::North, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(-1, -1)]),
-            (Rotation::East,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(1, 1)]),
-            (Rotation::South, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(1, 1)]),
-            (Rotation::West,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(-1, -1)]),
+            (Rotation::North, [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(-1, -1)]),
+            (Rotation::East,  [ivec2(-1, 1), ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0)]),
+            (Rotation::South, [ivec2(1, 1), ivec2(0, 1), ivec2(0, 0), ivec2(0, -1)]),
+            (Rotation::West,  [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(1, -1)]),
         ],
     ),
     (
         TetrominoKind::L,
         [
-            (Rotation::North, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(1, -1)]),
-            (Rotation::East,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(1, -1)]),
-            (Rotation::South, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(-1, 1)]),
-            (Rotation::West,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(-1, 1)]),
+            (Rotation::North, [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(1, -1)]),
+            (Rotation::East,  [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(-1, -1)]),
+            (Rotation::South, [ivec2(-1, 1), ivec2(0, 1), ivec2(0, 0), ivec2(0, -1)]),
+            (Rotation::West,  [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(1, 1)]),
         ],
     ),
 ];
