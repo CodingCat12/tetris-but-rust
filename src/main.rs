@@ -21,6 +21,86 @@ const TETROMINOS: [TetrominoKind; 7] = [
     TetrominoKind::L,
 ];
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Rotation {
+    North,
+    South,
+    West,
+    East,
+}
+
+const fn pos(x: i32, y: i32) -> IVec2 {
+    IVec2::new(x, y)
+}
+
+#[rustfmt::skip]
+#[allow(clippy::type_complexity)]
+const TETROMINO_SHAPES: [(TetrominoKind, [(Rotation, [IVec2; 4]); 4]); 7] = [
+    (
+        TetrominoKind::I,
+        [
+            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(2, 0)]),
+            (Rotation::East,  [pos(1, 1), pos(1, 0), pos(1, -1), pos(1, -2)]),
+            (Rotation::South, [pos(-1, -1), pos(0, -1), pos(1, -1), pos(2, -1)]),
+            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(0, -2)]),
+        ],
+    ),
+    (
+        TetrominoKind::O,
+        [
+            (Rotation::North, [pos(0, 0), pos(1, 0), pos(0, -1), pos(1, -1)]),
+            (Rotation::East,  [pos(0, 0), pos(1, 0), pos(0, -1), pos(1, -1)]),
+            (Rotation::South, [pos(0, 0), pos(1, 0), pos(0, -1), pos(1, -1)]),
+            (Rotation::West,  [pos(0, 0), pos(1, 0), pos(0, -1), pos(1, -1)]),
+        ],
+    ),
+    (
+        TetrominoKind::T,
+        [
+            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(0, -1)]),
+            (Rotation::East,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(1, 0)]),
+            (Rotation::South, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(0, 1)]),
+            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(-1, 0)]),
+        ],
+    ),
+    (
+        TetrominoKind::S,
+        [
+            (Rotation::North, [pos(0, 0), pos(1, 0), pos(-1, -1), pos(0, -1)]),
+            (Rotation::East,  [pos(0, 1), pos(0, 0), pos(1, 0), pos(1, -1)]),
+            (Rotation::South, [pos(0, 0), pos(1, 0), pos(-1, -1), pos(0, -1)]),
+            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(1, 0), pos(1, -1)]),
+        ],
+    ),
+    (
+        TetrominoKind::Z,
+        [
+            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(0, -1), pos(1, -1)]),
+            (Rotation::East,  [pos(1, 1), pos(1, 0), pos(0, 0), pos(0, -1)]),
+            (Rotation::South, [pos(-1, 0), pos(0, 0), pos(0, -1), pos(1, -1)]),
+            (Rotation::West,  [pos(1, 1), pos(1, 0), pos(0, 0), pos(0, -1)]),
+        ],
+    ),
+    (
+        TetrominoKind::J,
+        [
+            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(-1, -1)]),
+            (Rotation::East,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(1, 1)]),
+            (Rotation::South, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(1, 1)]),
+            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(-1, -1)]),
+        ],
+    ),
+    (
+        TetrominoKind::L,
+        [
+            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(1, -1)]),
+            (Rotation::East,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(1, -1)]),
+            (Rotation::South, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(-1, 1)]),
+            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(-1, 1)]),
+        ],
+    ),
+];
+
 fn main() {
     App::new()
         .add_event::<Tick>()
@@ -64,7 +144,8 @@ struct Tick;
 struct Tetromino {
     position: IVec2,
     color: Color,
-    shape: [[bool; 4]; 4],
+    kind: TetrominoKind,
+    rotation: Rotation,
 }
 
 impl Tetromino {
@@ -73,7 +154,8 @@ impl Tetromino {
         Tetromino {
             position: IVec2::new(GRID_WIDTH / 2, GRID_HEIGHT),
             color: kind.color(),
-            shape: kind.shape(),
+            kind,
+            rotation: Rotation::North,
         }
     }
 
@@ -94,41 +176,39 @@ impl Tetromino {
     }
 
     fn rotate_left(&mut self) {
-        for i in 0..4 {
-            for j in i + 1..4 {
-                let tmp = self.shape[i][j];
-                self.shape[i][j] = self.shape[j][i];
-                self.shape[j][i] = tmp;
-            }
+        self.rotation = match self.rotation {
+            Rotation::North => Rotation::West,
+            Rotation::West => Rotation::South,
+            Rotation::South => Rotation::East,
+            Rotation::East => Rotation::North,
         }
-
-        self.shape.reverse();
     }
 
     fn rotate_right(&mut self) {
-        for i in 0..4 {
-            for j in i + 1..4 {
-                let tmp = self.shape[i][j];
-                self.shape[i][j] = self.shape[j][i];
-                self.shape[j][i] = tmp;
-            }
-        }
-
-        for row in self.shape.iter_mut() {
-            row.reverse();
+        self.rotation = match self.rotation {
+            Rotation::North => Rotation::East,
+            Rotation::East => Rotation::South,
+            Rotation::South => Rotation::West,
+            Rotation::West => Rotation::North,
         }
     }
 
-    fn occupied_tiles(&self) -> Vec<IVec2> {
-        let mut tiles = Vec::new();
-        for y in 0..4 {
-            for x in 0..4 {
-                if self.shape[y][x] {
-                    tiles.push(self.position + IVec2::new(x as i32, y as i32));
+    fn occupied_tiles(&self) -> [IVec2; 4] {
+        for (kind, rest) in TETROMINO_SHAPES {
+            if kind != self.kind {
+                continue;
+            }
+
+            for (rotation, tiles) in rest {
+                if rotation != self.rotation {
+                    continue;
                 }
+
+                return tiles.map(|position| position + self.position);
             }
         }
-        tiles
+
+        unreachable!()
     }
 
     fn is_in_ground(&self) -> bool {
@@ -142,7 +222,7 @@ impl Tetromino {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum TetrominoKind {
     I,
     O,
@@ -169,53 +249,6 @@ impl TetrominoKind {
             TetrominoKind::Z => Color::Srgba(RED_600),
             TetrominoKind::J => Color::Srgba(BLUE_700),
             TetrominoKind::L => Color::Srgba(ORANGE_500),
-        }
-    }
-
-    const fn shape(&self) -> [[bool; 4]; 4] {
-        match *self {
-            TetrominoKind::I => [
-                [false, false, false, false],
-                [true, true, true, true],
-                [false, false, false, false],
-                [false, false, false, false],
-            ],
-            TetrominoKind::O => [
-                [false, false, false, false],
-                [false, true, true, false],
-                [false, true, true, false],
-                [false, false, false, false],
-            ],
-            TetrominoKind::T => [
-                [false, true, false, false],
-                [true, true, true, false],
-                [false, false, false, false],
-                [false, false, false, false],
-            ],
-            TetrominoKind::S => [
-                [false, true, true, false],
-                [true, true, false, false],
-                [false, false, false, false],
-                [false, false, false, false],
-            ],
-            TetrominoKind::Z => [
-                [true, true, false, false],
-                [false, true, true, false],
-                [false, false, false, false],
-                [false, false, false, false],
-            ],
-            TetrominoKind::J => [
-                [true, false, false, false],
-                [true, true, true, false],
-                [false, false, false, false],
-                [false, false, false, false],
-            ],
-            TetrominoKind::L => [
-                [false, false, true, false],
-                [true, true, true, false],
-                [false, false, false, false],
-                [false, false, false, false],
-            ],
         }
     }
 }
