@@ -33,6 +33,9 @@ const fn pos(x: i32, y: i32) -> IVec2 {
     IVec2::new(x, y)
 }
 
+#[derive(Resource, Default)]
+struct Score(u32);
+
 #[rustfmt::skip]
 #[allow(clippy::type_complexity)]
 const TETROMINO_SHAPES: [(TetrominoKind, [(Rotation, [IVec2; 4]); 4]); 7] = [
@@ -258,6 +261,7 @@ fn setup(mut commands: Commands, mut event_writer: EventWriter<Tick>) {
 
     commands.insert_resource(Ticker(Timer::from_seconds(0.5, TimerMode::Repeating)));
     commands.init_resource::<Grid>();
+    commands.init_resource::<Score>();
 
     commands.spawn((Tetromino::new(), Active));
 
@@ -605,7 +609,7 @@ fn handle_rotation(
     }
 }
 
-fn clear_lines(mut grid: ResMut<Grid>) {
+fn clear_lines(mut grid: ResMut<Grid>, mut score: ResMut<Score>) {
     let mut row_counts = [0; GRID_HEIGHT as usize];
 
     for pos in grid.tiles.keys() {
@@ -633,6 +637,14 @@ fn clear_lines(mut grid: ResMut<Grid>) {
     for &y in &full_rows {
         grid.tiles.retain(|pos, _| pos.y != y);
     }
+
+    score.0 += match full_rows.len() {
+        1 => 100,
+        2 => 300,
+        3 => 500,
+        4 => 800,
+        _ => unreachable!(),
+    };
 
     for &cleared_y in &full_rows {
         let mut new_tiles = HashMap::new();
