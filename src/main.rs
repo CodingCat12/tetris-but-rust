@@ -444,6 +444,130 @@ fn handle_movement(
     }
 }
 
+const fn get_wall_kick_offsets(kind: TetrominoKind, from: Rotation, to: Rotation) -> [IVec2; 5] {
+    match kind {
+        TetrominoKind::I => match (from, to) {
+            (Rotation::North, Rotation::East) => [
+                IVec2::ZERO,
+                IVec2::new(-2, 0),
+                IVec2::new(1, 0),
+                IVec2::new(-2, -1),
+                IVec2::new(1, 2),
+            ],
+            (Rotation::East, Rotation::North) => [
+                IVec2::ZERO,
+                IVec2::new(2, 0),
+                IVec2::new(-1, 0),
+                IVec2::new(2, 1),
+                IVec2::new(-1, -2),
+            ],
+            (Rotation::East, Rotation::South) => [
+                IVec2::ZERO,
+                IVec2::new(-1, 0),
+                IVec2::new(2, 0),
+                IVec2::new(-1, 2),
+                IVec2::new(2, -1),
+            ],
+            (Rotation::South, Rotation::East) => [
+                IVec2::ZERO,
+                IVec2::new(1, 0),
+                IVec2::new(-2, 0),
+                IVec2::new(1, -2),
+                IVec2::new(-2, 1),
+            ],
+            (Rotation::South, Rotation::West) => [
+                IVec2::ZERO,
+                IVec2::new(2, 0),
+                IVec2::new(-1, 0),
+                IVec2::new(2, 1),
+                IVec2::new(-1, -2),
+            ],
+            (Rotation::West, Rotation::South) => [
+                IVec2::ZERO,
+                IVec2::new(-2, 0),
+                IVec2::new(1, 0),
+                IVec2::new(-2, -1),
+                IVec2::new(1, 2),
+            ],
+            (Rotation::West, Rotation::North) => [
+                IVec2::ZERO,
+                IVec2::new(1, 0),
+                IVec2::new(-2, 0),
+                IVec2::new(1, -2),
+                IVec2::new(-2, 1),
+            ],
+            (Rotation::North, Rotation::West) => [
+                IVec2::ZERO,
+                IVec2::new(-1, 0),
+                IVec2::new(2, 0),
+                IVec2::new(-1, 2),
+                IVec2::new(2, -1),
+            ],
+            _ => unreachable!(),
+        },
+        TetrominoKind::O => [IVec2::ZERO; 5],
+        _ => match (from, to) {
+            (Rotation::North, Rotation::East) => [
+                IVec2::ZERO,
+                IVec2::new(-1, 0),
+                IVec2::new(-1, 1),
+                IVec2::new(0, -2),
+                IVec2::new(-1, -2),
+            ],
+            (Rotation::East, Rotation::North) => [
+                IVec2::ZERO,
+                IVec2::new(1, 0),
+                IVec2::new(1, -1),
+                IVec2::new(0, 2),
+                IVec2::new(1, 2),
+            ],
+            (Rotation::East, Rotation::South) => [
+                IVec2::ZERO,
+                IVec2::new(1, 0),
+                IVec2::new(1, -1),
+                IVec2::new(0, 2),
+                IVec2::new(1, 2),
+            ],
+            (Rotation::South, Rotation::East) => [
+                IVec2::ZERO,
+                IVec2::new(-1, 0),
+                IVec2::new(-1, 1),
+                IVec2::new(0, -2),
+                IVec2::new(-1, -2),
+            ],
+            (Rotation::South, Rotation::West) => [
+                IVec2::ZERO,
+                IVec2::new(1, 0),
+                IVec2::new(1, 1),
+                IVec2::new(0, -2),
+                IVec2::new(1, -2),
+            ],
+            (Rotation::West, Rotation::South) => [
+                IVec2::ZERO,
+                IVec2::new(-1, 0),
+                IVec2::new(-1, -1),
+                IVec2::new(0, 2),
+                IVec2::new(-1, 2),
+            ],
+            (Rotation::West, Rotation::North) => [
+                IVec2::ZERO,
+                IVec2::new(1, 0),
+                IVec2::new(1, -1),
+                IVec2::new(0, 2),
+                IVec2::new(1, 2),
+            ],
+            (Rotation::North, Rotation::West) => [
+                IVec2::ZERO,
+                IVec2::new(-1, 0),
+                IVec2::new(-1, 1),
+                IVec2::new(0, -2),
+                IVec2::new(-1, -2),
+            ],
+            _ => unreachable!(),
+        },
+    }
+}
+
 fn handle_rotation(
     mut active_tetromino: Query<&mut Tetromino, With<Active>>,
     grid: Res<Grid>,
@@ -451,32 +575,33 @@ fn handle_rotation(
 ) {
     if let Ok(mut tetromino) = active_tetromino.single_mut() {
         let mut new_tetromino = tetromino.clone();
-
         if input.just_pressed(KeyCode::KeyQ) {
             new_tetromino.rotate_left();
-        }
-
-        if input.just_pressed(KeyCode::KeyE) {
+        } else if input.just_pressed(KeyCode::KeyE) {
             new_tetromino.rotate_right();
-        }
+        } else {
+            return;
+        };
 
-        let mut i = 0;
-        while new_tetromino
-            .occupied_tiles()
-            .iter()
-            .any(|pos| grid.tiles.contains_key(pos))
-            || new_tetromino.is_in_ground()
-            || new_tetromino.is_in_wall()
-        {
-            if i % 2 == 0 {
-                new_tetromino.position.x += i;
+        let offsets =
+            get_wall_kick_offsets(tetromino.kind, tetromino.rotation, new_tetromino.rotation);
+
+        for offset in offsets {
+            new_tetromino.position += offset;
+
+            if !new_tetromino
+                .occupied_tiles()
+                .iter()
+                .any(|pos| grid.tiles.contains_key(pos))
+                && !new_tetromino.is_in_ground()
+                && !new_tetromino.is_in_wall()
+            {
+                *tetromino = new_tetromino;
+                break;
             } else {
-                new_tetromino.position.x -= i;
+                new_tetromino.position -= offset
             }
-            i += 1;
         }
-
-        *tetromino = new_tetromino;
     }
 }
 
