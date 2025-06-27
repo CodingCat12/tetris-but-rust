@@ -119,10 +119,6 @@ impl Tetromino {
         }
     }
 
-    fn contains_point(&self, point: IVec2) -> bool {
-        self.occupied_tiles().contains(&point)
-    }
-
     fn occupied_tiles(&self) -> Vec<IVec2> {
         let mut tiles = Vec::new();
         for y in 0..4 {
