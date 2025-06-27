@@ -666,6 +666,14 @@ fn clear_lines(mut grid: ResMut<Grid>, mut score: ResMut<Score>) {
         grid.tiles.retain(|pos, _| pos.y != y);
     }
 
+    let mut new_tiles = HashMap::new();
+    for (pos, color) in grid.tiles.drain() {
+        let shift = full_rows.iter().filter(|&&y| pos.y > y).count() as i32;
+        let new_pos = pos - IVec2::Y * shift;
+        new_tiles.insert(new_pos, color);
+    }
+    grid.tiles = new_tiles;
+
     score.0 += match full_rows.len() {
         1 => 100,
         2 => 300,
@@ -673,19 +681,4 @@ fn clear_lines(mut grid: ResMut<Grid>, mut score: ResMut<Score>) {
         4 => 800,
         _ => unreachable!(),
     };
-
-    for &cleared_y in &full_rows {
-        let mut new_tiles = HashMap::new();
-
-        for (pos, color) in grid.tiles.drain() {
-            let new_pos = if pos.y > cleared_y {
-                pos - IVec2::Y * full_rows.len() as i32
-            } else {
-                pos
-            };
-            new_tiles.insert(new_pos, color);
-        }
-
-        grid.tiles = new_tiles;
-    }
 }
