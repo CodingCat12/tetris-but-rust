@@ -29,10 +29,6 @@ enum Rotation {
     East,
 }
 
-const fn pos(x: i32, y: i32) -> IVec2 {
-    IVec2::new(x, y)
-}
-
 #[derive(Resource, Default)]
 struct Score(u32);
 
@@ -45,64 +41,64 @@ const TETROMINO_SHAPES: [(TetrominoKind, [(Rotation, [IVec2; 4]); 4]); 7] = [
     (
         TetrominoKind::I,
         [
-            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(2, 0)]),
-            (Rotation::East,  [pos(1, 1), pos(1, 0), pos(1, -1), pos(1, -2)]),
-            (Rotation::South, [pos(-1, -1), pos(0, -1), pos(1, -1), pos(2, -1)]),
-            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(0, -2)]),
+            (Rotation::North, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(2, 0)]),
+            (Rotation::East,  [ivec2(1, 1), ivec2(1, 0), ivec2(1, -1), ivec2(1, -2)]),
+            (Rotation::South, [ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1)]),
+            (Rotation::West,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(0, -2)]),
         ],
     ),
     (
         TetrominoKind::O,
         [
-            (Rotation::North, [pos(0, 0), pos(1, 0), pos(0, -1), pos(1, -1)]),
-            (Rotation::East,  [pos(0, 0), pos(1, 0), pos(0, -1), pos(1, -1)]),
-            (Rotation::South, [pos(0, 0), pos(1, 0), pos(0, -1), pos(1, -1)]),
-            (Rotation::West,  [pos(0, 0), pos(1, 0), pos(0, -1), pos(1, -1)]),
+            (Rotation::North, [ivec2(0, 0), ivec2(1, 0), ivec2(0, -1), ivec2(1, -1)]),
+            (Rotation::East,  [ivec2(0, 0), ivec2(1, 0), ivec2(0, -1), ivec2(1, -1)]),
+            (Rotation::South, [ivec2(0, 0), ivec2(1, 0), ivec2(0, -1), ivec2(1, -1)]),
+            (Rotation::West,  [ivec2(0, 0), ivec2(1, 0), ivec2(0, -1), ivec2(1, -1)]),
         ],
     ),
     (
         TetrominoKind::T,
         [
-            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(0, -1)]),
-            (Rotation::East,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(1, 0)]),
-            (Rotation::South, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(0, 1)]),
-            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(-1, 0)]),
+            (Rotation::North, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(0, -1)]),
+            (Rotation::East,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(1, 0)]),
+            (Rotation::South, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(0, 1)]),
+            (Rotation::West,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(-1, 0)]),
         ],
     ),
     (
         TetrominoKind::S,
         [
-            (Rotation::North, [pos(0, 0), pos(1, 0), pos(-1, -1), pos(0, -1)]),
-            (Rotation::East,  [pos(0, 1), pos(0, 0), pos(1, 0), pos(1, -1)]),
-            (Rotation::South, [pos(0, 0), pos(1, 0), pos(-1, -1), pos(0, -1)]),
-            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(1, 0), pos(1, -1)]),
+            (Rotation::North, [ivec2(0, 0), ivec2(1, 0), ivec2(-1, -1), ivec2(0, -1)]),
+            (Rotation::East,  [ivec2(0, 1), ivec2(0, 0), ivec2(1, 0), ivec2(1, -1)]),
+            (Rotation::South, [ivec2(0, 0), ivec2(1, 0), ivec2(-1, -1), ivec2(0, -1)]),
+            (Rotation::West,  [ivec2(0, 1), ivec2(0, 0), ivec2(1, 0), ivec2(1, -1)]),
         ],
     ),
     (
         TetrominoKind::Z,
         [
-            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(0, -1), pos(1, -1)]),
-            (Rotation::East,  [pos(1, 1), pos(1, 0), pos(0, 0), pos(0, -1)]),
-            (Rotation::South, [pos(-1, 0), pos(0, 0), pos(0, -1), pos(1, -1)]),
-            (Rotation::West,  [pos(1, 1), pos(1, 0), pos(0, 0), pos(0, -1)]),
+            (Rotation::North, [ivec2(-1, 0), ivec2(0, 0), ivec2(0, -1), ivec2(1, -1)]),
+            (Rotation::East,  [ivec2(1, 1), ivec2(1, 0), ivec2(0, 0), ivec2(0, -1)]),
+            (Rotation::South, [ivec2(-1, 0), ivec2(0, 0), ivec2(0, -1), ivec2(1, -1)]),
+            (Rotation::West,  [ivec2(1, 1), ivec2(1, 0), ivec2(0, 0), ivec2(0, -1)]),
         ],
     ),
     (
         TetrominoKind::J,
         [
-            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(-1, -1)]),
-            (Rotation::East,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(1, 1)]),
-            (Rotation::South, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(1, 1)]),
-            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(-1, -1)]),
+            (Rotation::North, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(-1, -1)]),
+            (Rotation::East,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(1, 1)]),
+            (Rotation::South, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(1, 1)]),
+            (Rotation::West,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(-1, -1)]),
         ],
     ),
     (
         TetrominoKind::L,
         [
-            (Rotation::North, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(1, -1)]),
-            (Rotation::East,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(1, -1)]),
-            (Rotation::South, [pos(-1, 0), pos(0, 0), pos(1, 0), pos(-1, 1)]),
-            (Rotation::West,  [pos(0, 1), pos(0, 0), pos(0, -1), pos(-1, 1)]),
+            (Rotation::North, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(1, -1)]),
+            (Rotation::East,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(1, -1)]),
+            (Rotation::South, [ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0), ivec2(-1, 1)]),
+            (Rotation::West,  [ivec2(0, 1), ivec2(0, 0), ivec2(0, -1), ivec2(-1, 1)]),
         ],
     ),
 ];
