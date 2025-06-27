@@ -36,6 +36,9 @@ const fn pos(x: i32, y: i32) -> IVec2 {
 #[derive(Resource, Default)]
 struct Score(u32);
 
+#[derive(Component)]
+struct ScoreText;
+
 #[rustfmt::skip]
 #[allow(clippy::type_complexity)]
 const TETROMINO_SHAPES: [(TetrominoKind, [(Rotation, [IVec2; 4]); 4]); 7] = [
@@ -124,6 +127,7 @@ fn main() {
                 handle_movement,
                 handle_rotation,
                 ghost_piece,
+                update_score_text,
             ),
         )
         .run();
@@ -256,7 +260,11 @@ impl TetrominoKind {
     }
 }
 
-fn setup(mut commands: Commands, mut event_writer: EventWriter<Tick>) {
+fn setup(
+    mut commands: Commands,
+    mut event_writer: EventWriter<Tick>,
+    asset_server: Res<AssetServer>,
+) {
     commands.spawn(Camera2d);
 
     commands.insert_resource(Ticker(Timer::from_seconds(0.5, TimerMode::Repeating)));
@@ -285,6 +293,30 @@ fn setup(mut commands: Commands, mut event_writer: EventWriter<Tick>) {
 
     // Initial tick
     event_writer.write_default();
+
+    let mut ui_root = commands.spawn(Node {
+        padding: UiRect::all(Val::Px(32.0)),
+        ..default()
+    });
+
+    let font = asset_server.load("fonts/Roboto-Regular.ttf");
+    let text_font = TextFont {
+        font: font.clone(),
+        font_size: 40.0,
+        ..default()
+    };
+
+    ui_root.with_child((
+        Text::new("Score: "),
+        text_font.clone(),
+        children![(TextSpan::default(), text_font.clone(), ScoreText)],
+    ));
+}
+
+fn update_score_text(mut query: Query<&mut TextSpan, With<ScoreText>>, score: Res<Score>) {
+    if let Ok(mut text) = query.single_mut() {
+        **text = score.0.to_string()
+    }
 }
 
 fn send_tick(
