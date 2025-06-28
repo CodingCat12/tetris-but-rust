@@ -290,22 +290,49 @@ fn setup(
     // Initial tick
     event_writer.write_default();
 
-    let mut ui_root = commands.spawn(Node {
-        padding: UiRect::all(Val::Px(32.0)),
-        ..default()
-    });
-
     let font = asset_server.load("fonts/Roboto-Regular.ttf");
-    let text_font = TextFont {
+    let score_font = TextFont {
         font: font.clone(),
         font_size: 40.0,
         ..default()
     };
 
-    ui_root.with_child((
-        Text::new("Score: "),
-        text_font.clone(),
-        children![(TextSpan::default(), text_font.clone(), ScoreText)],
+    commands.spawn((
+        Node {
+            padding: UiRect::all(Val::Px(32.0)),
+            ..default()
+        },
+        children![(
+            Text::new("Score: "),
+            score_font.clone(),
+            children![(TextSpan::default(), score_font.clone(), ScoreText)],
+        )],
+    ));
+
+    let instruction_font = (
+        TextFont {
+            font: font.clone(),
+            font_size: 20.0,
+            ..default()
+        },
+        TextColor(Color::from(GRAY_300)),
+    );
+
+    commands.spawn((
+        Node {
+            padding: UiRect::all(Val::Px(32.0)),
+            flex_direction: FlexDirection::Column,
+            height: Val::Vh(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::FlexStart,
+            margin: UiRect::all(Val::Px(8.0)),
+            ..default()
+        },
+        children![
+            (Text::new("Use A and D to move"), instruction_font.clone()),
+            (Text::new("Use Q and E to rotate"), instruction_font.clone()),
+            (Text::new("Use S to soft drop"), instruction_font.clone()),
+        ],
     ));
 }
 
