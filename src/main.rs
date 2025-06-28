@@ -1,10 +1,11 @@
 use bevy::color::palettes::tailwind::*;
-use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-
 use bevy::window::WindowResolution;
+
 use rand::distr::StandardUniform;
 use rand::prelude::*;
+
+use std::collections::HashMap;
 
 const BLOCK_SIZE: f32 = 32.0;
 
