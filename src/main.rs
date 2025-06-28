@@ -124,6 +124,7 @@ fn main() {
                 handle_rotation,
                 ghost_piece,
                 update_score_text,
+                toggle_instructions,
             ),
         )
         .run();
@@ -256,6 +257,9 @@ impl TetrominoKind {
     }
 }
 
+#[derive(Component)]
+struct Instructions;
+
 fn setup(
     mut commands: Commands,
     mut event_writer: EventWriter<Tick>,
@@ -319,6 +323,8 @@ fn setup(
     );
 
     commands.spawn((
+        Instructions,
+        Visibility::Visible,
         Node {
             padding: UiRect::all(Val::Px(32.0)),
             flex_direction: FlexDirection::Column,
@@ -332,8 +338,27 @@ fn setup(
             (Text::new("Use A and D to move"), instruction_font.clone()),
             (Text::new("Use Q and E to rotate"), instruction_font.clone()),
             (Text::new("Use S to soft drop"), instruction_font.clone()),
+            (
+                Text::new("Use TAB to toggle instructions"),
+                instruction_font.clone()
+            ),
         ],
     ));
+}
+
+fn toggle_instructions(
+    input: Res<ButtonInput<KeyCode>>,
+    mut query: Query<&mut Visibility, With<Instructions>>,
+) {
+    if input.just_pressed(KeyCode::Tab)
+        && let Ok(mut visibility) = query.single_mut()
+    {
+        *visibility = match *visibility {
+            Visibility::Visible => Visibility::Hidden,
+            Visibility::Hidden => Visibility::Visible,
+            Visibility::Inherited => Visibility::Inherited,
+        }
+    }
 }
 
 fn update_score_text(mut query: Query<&mut TextSpan, With<ScoreText>>, score: Res<Score>) {
