@@ -115,8 +115,15 @@ fn main() {
             }),
             ..default()
         }))
+        .init_state::<GameState>()
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, (send_tick, gravity, clear_lines).chain())
+        .add_systems(OnEnter(GameState::Running), setup_game)
+        .add_systems(
+            FixedUpdate,
+            (send_tick, gravity, clear_lines)
+                .chain()
+                .run_if(in_state(GameState::Running)),
+        )
         .add_systems(
             Update,
             (
@@ -126,8 +133,16 @@ fn main() {
                 ghost_piece,
                 update_score_text,
                 toggle_instructions,
-            ),
+            )
+                .run_if(in_state(GameState::Running)),
         )
+        .add_systems(OnExit(GameState::GameOver), despawn_all::<Tetromino>)
+        .add_systems(OnEnter(GameState::GameOver), setup_game_over_screen)
+        .add_systems(
+            Update,
+            button_interaction.run_if(in_state(GameState::GameOver)),
+        )
+        .add_systems(OnExit(GameState::GameOver), despawn_all::<GameOverScreen>)
         .run();
 }
 
@@ -261,16 +276,18 @@ impl TetrominoKind {
 #[derive(Component)]
 struct Instructions;
 
-fn setup(
+fn setup(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
+fn setup_game(
     mut commands: Commands,
     mut event_writer: EventWriter<Tick>,
     asset_server: Res<AssetServer>,
 ) {
-    commands.spawn(Camera2d);
-
     commands.insert_resource(Ticker(Timer::from_seconds(0.5, TimerMode::Repeating)));
-    commands.init_resource::<Grid>();
-    commands.init_resource::<Score>();
+    commands.insert_resource(Grid::default());
+    commands.insert_resource(Score::default());
 
     commands.spawn((Tetromino::new(), Active));
 
@@ -347,6 +364,94 @@ fn setup(
     ));
 }
 
+#[derive(Component)]
+struct GameOverScreen;
+
+fn setup_game_over_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let font = asset_server.load("fonts/Roboto-Regular.ttf");
+
+    commands.spawn((
+        GameOverScreen,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            margin: UiRect::all(Val::Px(8.0)),
+            ..default()
+        },
+        children![
+            (
+                Text::new("Game Over"),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 80.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextShadow::default(),
+            ),
+            (
+                Button,
+                Node {
+                    width: Val::Px(150.0),
+                    height: Val::Px(65.0),
+                    border: UiRect::all(Val::Px(6.0)),
+                    // horizontally center child text
+                    justify_content: JustifyContent::Center,
+                    // vertically center child text
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BorderColor(Color::BLACK),
+                BorderRadius::all(Val::Px(16.0)),
+                children![(
+                    Text::new("Restart"),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 36.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                    TextShadow::default(),
+                )]
+            )
+        ],
+    ));
+}
+
+fn despawn_all<T: Component>(mut commands: Commands, query: Query<Entity, With<T>>) {
+    for entity in query {
+        commands.entity(entity).despawn();
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn button_interaction(
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor, &mut BorderColor),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut game_state: ResMut<NextState<GameState>>,
+) {
+    for (interaction, mut color, mut border_color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Hovered => {
+                *color = ZINC_700.into();
+                border_color.0 = Color::WHITE;
+            }
+            Interaction::None => {
+                *color = ZINC_800.into();
+                border_color.0 = Color::BLACK;
+            }
+            Interaction::Pressed => {
+                game_state.set(GameState::Running);
+            }
+        }
+    }
+}
+
 fn toggle_instructions(
     input: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut Visibility, With<Instructions>>,
@@ -380,11 +485,19 @@ fn send_tick(
     }
 }
 
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
+enum GameState {
+    #[default]
+    Running,
+    GameOver,
+}
+
 fn gravity(
     mut active_tetromino: Query<(&mut Tetromino, Entity), With<Active>>,
     mut grid: ResMut<Grid>,
     mut commands: Commands,
     mut event_reader: EventReader<Tick>,
+    mut game_state: ResMut<NextState<GameState>>,
 ) {
     for _tick in event_reader.read() {
         if let Ok((mut tetromino, entity)) = active_tetromino.single_mut() {
@@ -404,7 +517,9 @@ fn gravity(
                 *tetromino = new_tetromino;
             } else {
                 for IVec2 { x, y } in tetromino.occupied_tiles() {
-                    grid.tiles.insert(IVec2::new(x, y), color);
+                    if grid.tiles.insert(IVec2::new(x, y), color).is_some() {
+                        game_state.set(GameState::GameOver);
+                    }
                 }
 
                 commands.entity(entity).despawn();
