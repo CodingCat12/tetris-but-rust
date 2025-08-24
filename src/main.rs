@@ -5,7 +5,7 @@ use catppuccin::ColorName;
 use rand::distr::StandardUniform;
 use rand::prelude::*;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 const BLOCK_SIZE: f32 = 32.0;
 
@@ -117,6 +117,8 @@ fn main() {
             ..default()
         }))
         .init_resource::<Theme>()
+        .init_resource::<Random>()
+        .insert_resource(PieceQueue::new(&mut rand::rng()))
         .init_state::<GameState>()
         .add_systems(Startup, setup)
         .add_systems(Update, (toggle_theme, recolor))
@@ -231,6 +233,37 @@ struct Ticker(Timer);
 #[derive(Component)]
 struct Active;
 
+#[derive(Resource)]
+struct Random(StdRng);
+
+impl Default for Random {
+    fn default() -> Self {
+        Self(StdRng::from_os_rng())
+    }
+}
+
+#[derive(Resource)]
+struct PieceQueue(VecDeque<TetrominoKind>);
+
+impl PieceQueue {
+    fn new<R>(rng: &mut R) -> Self
+    where
+        R: Rng + ?Sized,
+    {
+        let mut result = TETROMINOS;
+        result.shuffle(rng);
+        PieceQueue(VecDeque::from_iter(result))
+    }
+
+    fn next<R>(&mut self, rng: &mut R) -> TetrominoKind
+    where
+        R: Rng + ?Sized,
+    {
+        self.0.push_back(rng.random::<TetrominoKind>());
+        self.0.pop_front().unwrap_or_else(|| self.next(rng))
+    }
+}
+
 #[derive(Resource, Default)]
 struct Grid {
     tiles: HashMap<IVec2, catppuccin::ColorName>,
@@ -248,8 +281,7 @@ struct Tetromino {
 }
 
 impl Tetromino {
-    fn new() -> Self {
-        let kind = rand::random::<TetrominoKind>();
+    fn new(kind: TetrominoKind) -> Self {
         Tetromino {
             position: IVec2::new(GRID_WIDTH / 2, GRID_HEIGHT),
             kind,
@@ -380,12 +412,14 @@ fn setup_game(
     mut event_writer: EventWriter<Tick>,
     asset_server: Res<AssetServer>,
     theme: Res<Theme>,
+    mut piece_queue: ResMut<PieceQueue>,
+    mut rng: ResMut<Random>,
 ) {
     commands.insert_resource(Ticker(Timer::from_seconds(0.5, TimerMode::Repeating)));
     commands.insert_resource(Grid::default());
     commands.insert_resource(Score::default());
 
-    commands.spawn((Tetromino::new(), Active));
+    commands.spawn((Tetromino::new(piece_queue.next(&mut rng.0)), Active));
 
     commands.insert_resource(ClearColor(theme.color(ColorName::Base)));
     for x in 0..GRID_WIDTH {
@@ -607,6 +641,8 @@ fn gravity(
     mut commands: Commands,
     mut event_reader: EventReader<Tick>,
     mut game_state: ResMut<NextState<GameState>>,
+    mut piece_queue: ResMut<PieceQueue>,
+    mut rng: ResMut<Random>,
 ) {
     for _tick in event_reader.read() {
         if let Ok((mut tetromino, entity)) = active_tetromino.single_mut() {
@@ -633,7 +669,7 @@ fn gravity(
 
                 commands.entity(entity).despawn();
 
-                commands.spawn((Tetromino::new(), Active));
+                commands.spawn((Tetromino::new(piece_queue.next(&mut rng.0)), Active));
             }
         }
     }
