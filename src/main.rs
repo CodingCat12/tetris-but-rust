@@ -1,7 +1,7 @@
-use bevy::color::palettes::tailwind::*;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 
+use catppuccin::ColorName;
 use rand::distr::StandardUniform;
 use rand::prelude::*;
 
@@ -107,6 +107,7 @@ const TETROMINO_SHAPES: [(TetrominoKind, [(Rotation, [IVec2; 4]); 4]); 7] = [
 fn main() {
     App::new()
         .add_event::<Tick>()
+        .add_event::<ThemeSwitched>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: WindowResolution::new(1920.0, 1280.0),
@@ -115,8 +116,10 @@ fn main() {
             }),
             ..default()
         }))
+        .init_resource::<Theme>()
         .init_state::<GameState>()
         .add_systems(Startup, setup)
+        .add_systems(Update, (toggle_theme, recolor))
         .add_systems(OnEnter(GameState::Running), setup_game)
         .add_systems(
             FixedUpdate,
@@ -146,6 +149,82 @@ fn main() {
         .run();
 }
 
+#[derive(Resource, Default, Clone, Copy)]
+enum Theme {
+    #[default]
+    Dark,
+    Light,
+}
+
+impl Theme {
+    pub fn color(&self, name: catppuccin::ColorName) -> Color {
+        let palette = match self {
+            Theme::Dark => catppuccin::PALETTE.mocha.colors,
+            Theme::Light => catppuccin::PALETTE.latte.colors,
+        };
+        let catppuccin_color = palette[name].rgb;
+        Color::srgba(
+            catppuccin_color.r as f32 / 255.0,
+            catppuccin_color.g as f32 / 255.0,
+            catppuccin_color.b as f32 / 255.0,
+            1.0,
+        )
+    }
+}
+
+fn toggle_theme(
+    input: Res<ButtonInput<KeyCode>>,
+    mut theme: ResMut<Theme>,
+    mut events: EventWriter<ThemeSwitched>,
+) {
+    if input.just_pressed(KeyCode::KeyL) {
+        *theme = match *theme {
+            Theme::Dark => Theme::Light,
+            Theme::Light => Theme::Dark,
+        };
+
+        events.write_default();
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn recolor(
+    theme: Res<Theme>,
+    mut events: EventReader<ThemeSwitched>,
+    mut background_cells: Query<&mut Sprite, With<BackgroundCell>>,
+    mut clear_color: ResMut<ClearColor>,
+    instructions: Query<&Children, With<Instructions>>,
+    score_display: Query<&Children, With<ScoreDisplay>>,
+    mut text_colors: Query<&mut TextColor>,
+) {
+    for _ in events.read() {
+        for mut sprite in &mut background_cells {
+            sprite.color = theme.color(ColorName::Surface1);
+        }
+
+        *clear_color = ClearColor(theme.color(ColorName::Base));
+
+        if let Ok(instructions) = instructions.single() {
+            for &child in instructions {
+                if let Ok(mut font) = text_colors.get_mut(child) {
+                    *font = TextColor(theme.color(ColorName::Subtext1))
+                }
+            }
+        }
+
+        if let Ok(instructions) = score_display.single() {
+            for &child in instructions {
+                if let Ok(mut font) = text_colors.get_mut(child) {
+                    *font = TextColor(theme.color(ColorName::Text))
+                }
+            }
+        }
+    }
+}
+
+#[derive(Event, Default)]
+struct ThemeSwitched;
+
 #[derive(Resource)]
 struct Ticker(Timer);
 
@@ -154,7 +233,7 @@ struct Active;
 
 #[derive(Resource, Default)]
 struct Grid {
-    tiles: HashMap<IVec2, Color>,
+    tiles: HashMap<IVec2, catppuccin::ColorName>,
 }
 
 #[derive(Event, Default)]
@@ -163,9 +242,9 @@ struct Tick;
 #[derive(Component, Clone)]
 struct Tetromino {
     position: IVec2,
-    color: Color,
     kind: TetrominoKind,
     rotation: Rotation,
+    is_ghost: bool,
 }
 
 impl Tetromino {
@@ -173,9 +252,17 @@ impl Tetromino {
         let kind = rand::random::<TetrominoKind>();
         Tetromino {
             position: IVec2::new(GRID_WIDTH / 2, GRID_HEIGHT),
-            color: kind.color(),
             kind,
             rotation: Rotation::North,
+            is_ghost: false,
+        }
+    }
+
+    const fn color(&self) -> ColorName {
+        if !self.is_ghost {
+            self.kind.color()
+        } else {
+            ColorName::Overlay0
         }
     }
 
@@ -260,18 +347,23 @@ impl Distribution<TetrominoKind> for StandardUniform {
 }
 
 impl TetrominoKind {
-    const fn color(&self) -> Color {
+    const fn color(&self) -> ColorName {
+        use ColorName::*;
+
         match *self {
-            TetrominoKind::I => Color::Srgba(CYAN_500),
-            TetrominoKind::O => Color::Srgba(YELLOW_300),
-            TetrominoKind::T => Color::Srgba(PURPLE_700),
-            TetrominoKind::S => Color::Srgba(GREEN_500),
-            TetrominoKind::Z => Color::Srgba(RED_600),
-            TetrominoKind::J => Color::Srgba(BLUE_700),
-            TetrominoKind::L => Color::Srgba(ORANGE_500),
+            TetrominoKind::I => Teal,
+            TetrominoKind::O => Yellow,
+            TetrominoKind::T => Mauve,
+            TetrominoKind::S => Green,
+            TetrominoKind::Z => Red,
+            TetrominoKind::J => Peach,
+            TetrominoKind::L => Blue,
         }
     }
 }
+
+#[derive(Component)]
+struct BackgroundCell;
 
 #[derive(Component)]
 struct Instructions;
@@ -280,10 +372,14 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 
+#[derive(Component)]
+struct ScoreDisplay;
+
 fn setup_game(
     mut commands: Commands,
     mut event_writer: EventWriter<Tick>,
     asset_server: Res<AssetServer>,
+    theme: Res<Theme>,
 ) {
     commands.insert_resource(Ticker(Timer::from_seconds(0.5, TimerMode::Repeating)));
     commands.insert_resource(Grid::default());
@@ -291,12 +387,13 @@ fn setup_game(
 
     commands.spawn((Tetromino::new(), Active));
 
-    commands.insert_resource(ClearColor(Color::from(NEUTRAL_950)));
+    commands.insert_resource(ClearColor(theme.color(ColorName::Base)));
     for x in 0..GRID_WIDTH {
         for y in 0..GRID_HEIGHT {
             commands.spawn((
+                BackgroundCell,
                 Sprite {
-                    color: Color::from(ZINC_900),
+                    color: theme.color(ColorName::Surface1),
                     custom_size: Some(Vec2::splat(BLOCK_SIZE - 1.0)),
                     ..default()
                 },
@@ -313,22 +410,25 @@ fn setup_game(
     event_writer.write_default();
 
     let font = asset_server.load("fonts/Roboto-Regular.ttf");
-    let score_font = TextFont {
-        font: font.clone(),
-        font_size: 40.0,
-        ..default()
-    };
+    let score_font = (
+        TextFont {
+            font: font.clone(),
+            font_size: 40.0,
+            ..default()
+        },
+        TextColor(theme.color(ColorName::Text)),
+    );
 
     commands.spawn((
+        ScoreDisplay,
         Node {
             padding: UiRect::all(Val::Px(32.0)),
             ..default()
         },
-        children![(
-            Text::new("Score: "),
-            score_font.clone(),
-            children![(TextSpan::default(), score_font.clone(), ScoreText)],
-        )],
+        children![
+            (Text::new("Score: "), score_font.clone()),
+            (Text::default(), score_font.clone(), ScoreText)
+        ],
     ));
 
     let instruction_font = (
@@ -337,7 +437,7 @@ fn setup_game(
             font_size: 20.0,
             ..default()
         },
-        TextColor(Color::from(GRAY_300)),
+        TextColor(theme.color(ColorName::Subtext0)),
     );
 
     commands.spawn((
@@ -357,6 +457,10 @@ fn setup_game(
             (Text::new("Use Q and E to rotate"), instruction_font.clone()),
             (Text::new("Use S to soft drop"), instruction_font.clone()),
             (
+                Text::new("Use L to switch between light/dark mode"),
+                instruction_font.clone()
+            ),
+            (
                 Text::new("Use TAB to toggle instructions"),
                 instruction_font.clone()
             ),
@@ -367,7 +471,11 @@ fn setup_game(
 #[derive(Component)]
 struct GameOverScreen;
 
-fn setup_game_over_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup_game_over_screen(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    theme: Res<Theme>,
+) {
     let font = asset_server.load("fonts/Roboto-Regular.ttf");
 
     commands.spawn((
@@ -389,7 +497,7 @@ fn setup_game_over_screen(mut commands: Commands, asset_server: Res<AssetServer>
                     font_size: 80.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextColor(theme.color(ColorName::Text)),
                 TextShadow::default(),
             ),
             (
@@ -413,7 +521,7 @@ fn setup_game_over_screen(mut commands: Commands, asset_server: Res<AssetServer>
                         font_size: 36.0,
                         ..default()
                     },
-                    TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                    TextColor(theme.color(ColorName::Text)),
                     TextShadow::default(),
                 )]
             )
@@ -434,15 +542,16 @@ fn button_interaction(
         (Changed<Interaction>, With<Button>),
     >,
     mut game_state: ResMut<NextState<GameState>>,
+    theme: Res<Theme>,
 ) {
     for (interaction, mut color, mut border_color) in &mut interaction_query {
         match *interaction {
             Interaction::Hovered => {
-                *color = ZINC_700.into();
+                *color = theme.color(ColorName::Surface2).into();
                 border_color.0 = Color::WHITE;
             }
             Interaction::None => {
-                *color = ZINC_800.into();
+                *color = theme.color(ColorName::Subtext1).into();
                 border_color.0 = Color::BLACK;
             }
             Interaction::Pressed => {
@@ -467,8 +576,8 @@ fn toggle_instructions(
     }
 }
 
-fn update_score_text(mut query: Query<&mut TextSpan, With<ScoreText>>, score: Res<Score>) {
-    if let Ok(mut text) = query.single_mut() {
+fn update_score_text(mut query: Query<&mut Text, With<ScoreText>>, score: Res<Score>) {
+    for mut text in &mut query {
         **text = score.0.to_string()
     }
 }
@@ -503,7 +612,7 @@ fn gravity(
         if let Ok((mut tetromino, entity)) = active_tetromino.single_mut() {
             let mut new_tetromino = tetromino.clone();
             new_tetromino.move_down();
-            let color = tetromino.color;
+            let color = tetromino.color();
 
             let mut is_in_other_tile = false;
             for pos in new_tetromino.occupied_tiles() {
@@ -545,7 +654,7 @@ fn ghost_piece(
 
     if let Ok(active) = active_tetromino.single().cloned() {
         let mut ghost_tetromino = Tetromino {
-            color: Color::from(GRAY_500),
+            is_ghost: true,
             ..active
         };
 
@@ -569,13 +678,14 @@ fn update_sprites(
     tetrominoes: Query<(&Tetromino, Option<&Active>)>,
     sprites: Query<Entity, With<Redraw>>,
     grid: Res<Grid>,
+    theme: Res<Theme>,
 ) {
     for sprite in sprites {
         commands.entity(sprite).despawn();
     }
 
     for (tetromino, active) in tetrominoes {
-        let color = tetromino.color;
+        let color = theme.color(tetromino.color());
 
         for IVec2 { x, y } in tetromino.occupied_tiles() {
             commands.spawn((
@@ -595,10 +705,10 @@ fn update_sprites(
         }
     }
 
-    for (&IVec2 { x, y }, &color) in &grid.tiles {
+    for (&IVec2 { x, y }, &color_name) in &grid.tiles {
         commands.spawn((
             Sprite {
-                color,
+                color: theme.color(color_name),
                 custom_size: Some(Vec2::splat(BLOCK_SIZE - 1.0)),
                 ..default()
             },
